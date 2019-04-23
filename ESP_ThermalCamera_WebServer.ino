@@ -270,7 +270,7 @@ void handleRoot() {
 
 void handleADC() {
   extern float CenterTemp;
-  server.send(200, "text/plane", CenterTemp); //Send ADC value only to client ajax request
+  server.send(200, "text/plane", String(CenterTemp)); //Send ADC value only to client ajax request
 }
 
 //Returns true if the MLX90640 is detected on the I2C bus
