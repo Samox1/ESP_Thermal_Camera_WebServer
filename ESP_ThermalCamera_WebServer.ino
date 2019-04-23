@@ -136,16 +136,13 @@ void setup()
   uint16_t time = millis();
   display.fillScreen(BLACK);
   time = millis() - time;
-
   Serial.println(time, DEC);
   delay(500);
 
-  lcdTestPattern();
-  delay(1000);
 
   display.fillScreen(BLACK);
   display.setCursor(0,0);
-  display.print("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur adipiscing ante sed nibh tincidunt feugiat. Maecenas enim massa");
+  display.print("Welcome!\nThis is example of Thermal Image Camera based on MLX90640 sensor.\n by SamoX");
   delay(1000);
   display.fillScreen(BLACK);
   lcdTestThermalImage();
@@ -174,15 +171,16 @@ void loop()
     float emissivity = 0.95;
 
     MLX90640_CalculateTo(mlx90640Frame, &mlx90640, emissivity, tr, mlx90640To);
-
+  }
+  
     float MaxTemp = 0;
     float MinTemp = 0;
-    float CenterTemp = (mlx90640To[165]+mlx90640To[180]+mlx90640To[176]+mlx90640To[192]) / 4.0;
+    float CenterTemp = (mlx90640To[165]+mlx90640To[180]+mlx90640To[176]+mlx90640To[192]) / 4.0;  // Temp in Center - based on 4 pixels
 
-    MaxTemp = mlx90640To[0];
+    MaxTemp = mlx90640To[0];            // Get first data to find Max and Min Temperature
     MinTemp = mlx90640To[0];
   
-    for (int x = 0 ; x < 768 ; x++)
+    for (int x = 0 ; x < 768 ; x++)     // Find Maximum and Minimum Temperature
     {
       if (mlx90640To[x] > MaxTemp){
         MaxTemp = mlx90640To[x];
@@ -191,12 +189,13 @@ void loop()
         MinTemp = mlx90640To[x];
       }
     }
-    //display.fillRect(0, 0, 96, 48, BLACK);
-    lcdThermalImage(mlx90640To, MinTemp, MaxTemp);
-
-    display.fillRect(66, 0, 30, 48, BLACK);
     
-    display.setCursor(66,0);
+    //display.fillRect(0, 0, 96, 48, BLACK);    // Black important sector - image and text on right side
+    lcdThermalImage(mlx90640To, MinTemp, MaxTemp);    // Function to 
+
+    display.fillRect(66, 0, 30, 48, BLACK);     // Black only text with Max, Center and Min temperature
+    
+    display.setCursor(66,0);                    // Text with Max, Center and Min Temperature on right side
     display.setTextColor(RED);
     display.print(MaxTemp,2);
 
@@ -207,7 +206,7 @@ void loop()
     display.setCursor(66,36);
     display.setTextColor(BLUE);
     display.print(MinTemp,2);
-  }
+  
 
  
   for (int x = 0 ; x < 768 ; x++)
@@ -251,24 +250,7 @@ void lcdThermalImage(float mlx90640To[], float MinTemp, float MaxTemp)
   }
   display.endWrite();
 }
-/*
-void lcdThermalImage(float mlx90640To[])
-{
-  uint8_t w,h;
-  display.setAddrWindow(0, 0, 96, 64);
 
-  for (h = 0; h < 48; h++) {
-    for (w = 0; w < 64; w++) {
-      if (h*w <= 255) {
-        display.writePixel(w, h, camColors[h*w]);
-      } else{
-        display.writePixel(w, h, RED);
-      }
-    }
-  }
-  display.endWrite();
-}
-*/
 
 void lcdTestThermalImage(void)
 {
@@ -287,34 +269,4 @@ void lcdTestThermalImage(void)
   display.endWrite();
 }
 
-
-void lcdTestPattern(void)
-{
-  uint8_t w,h;
-  display.setAddrWindow(0, 0, 96, 64);
-
-  for (h = 0; h < 64; h++) {
-    for (w = 0; w < 96; w++) {
-      if (w > 83) {
-        display.writePixel(w, h, WHITE);
-      } else if (w > 71) {
-        display.writePixel(w, h, BLUE);
-      } else if (w > 59) {
-        display.writePixel(w, h, GREEN);
-      } else if (w > 47) {
-        display.writePixel(w, h, CYAN);
-      } else if (w > 35) {
-        display.writePixel(w, h, RED);
-      } else if (w > 23) {
-        display.writePixel(w, h, MAGENTA);
-      } else if (w > 11) {
-        display.writePixel(w, h, YELLOW);
-      } else {
-        display.writePixel(w, h, BLACK);
-      }
-    }
-  }
-
-  display.endWrite();
-}
 
