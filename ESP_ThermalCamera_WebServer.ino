@@ -122,7 +122,7 @@ void setup()
     Serial.println("Parameter extraction failed");
   
   int SetRefreshRate;
-  SetRefreshRate = MLX90640_SetRefreshRate(0x33,0x05);
+  SetRefreshRate = MLX90640_SetRefreshRate(0x33,0x03);
 
 // --- Part Display OLED --- //
 
@@ -191,7 +191,7 @@ void loop()
   }
   
     // Calculate difference between Subpages (chess-mode)
-    int pa = 0;
+/*    int pa = 0;
     int niepa = 0;
     float sumpa = 0;
     float sumniepa = 0;
@@ -221,9 +221,9 @@ void loop()
       for(int i=0; i<h; i++) {
         for(int j=0; j<w; j++) {
           if((i+j)%2 == 0){
-            //mlx90640To[j+(w*i)] += abs(diff); 
+            mlx90640To[j+(w*i)] += abs(diff); 
           }else{
-            mlx90640To[j+(w*i)] += abs(diff);
+            //mlx90640To[j+(w*i)] += abs(diff);
           }
         }
       }
@@ -231,14 +231,14 @@ void loop()
        for(int i=0; i<h; i++) {
         for(int j=0; j<w; j++) {
           if((i+j)%2 == 0){
-            mlx90640To[j+(w*i)] += abs(diff); 
+            //mlx90640To[j+(w*i)] += abs(diff); 
           }else{
-            //mlx90640To[j+(w*i)] += abs(diff);
+            mlx90640To[j+(w*i)] += abs(diff);
           }
         }
       }
     }
-
+*/
     //float MaxTemp = 0;                // Variables as global
     //float MinTemp = 0;
     CenterTemp = (mlx90640To[165]+mlx90640To[180]+mlx90640To[176]+mlx90640To[192]) / 4.0;  // Temp in Center - based on 4 pixels
@@ -255,9 +255,12 @@ void loop()
         MinTemp = mlx90640To[x];
       }
     }
+
+    //MaxTemp = 40.0;
+    //MinTemp = 0.0;
     
     //display.fillRect(0, 0, 96, 48, BLACK);    // Black important sector - image and text on right side
-    lcdThermalImage(mlx90640To, MinTemp, MaxTemp);    // Function to 
+    lcdThermalImage(mlx90640To, MinTemp, MaxTemp);    // Function to draw Thermal Image on OLED 
 
     display.fillRect(66, 0, 30, 48, BLACK);     // Black only text with Max, Center and Min temperature
     
@@ -313,7 +316,7 @@ void lcdThermalImage(float mlx90640To[], float MinTemp, float MaxTemp)
 
   for (h = 0; h < 24; h++) {
     for (w = 0; w < 32; w++) {
-      uint8_t colorIndex = map(mlx90640To[w+(32*h)], MinTemp, MaxTemp, 0, 255);
+      uint8_t colorIndex = map(mlx90640To[w+(32*h)], MinTemp-5.0, MaxTemp+5.0, 0, 255);
       colorIndex = constrain(colorIndex, 0, 255);
       
       display.fillRect(box * w, box * h, box, box, camColors[colorIndex]);

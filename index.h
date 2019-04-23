@@ -18,14 +18,14 @@ const char MAIN_page[] PROGMEM = R"=====(
 <div class="card">
   <h4>The ESP32 Update web page without refresh</h4><br>
   <h1>Sensor Value:<span id="ADCValue">0</span></h1><br>
-  <br><a href="https://circuits4you.com">Circuits4you.com</a>
+  <br>
 </div>
 <script>
 
 setInterval(function() {
   // Call a function repetatively with 1 Second interval
   getData();
-}, 1000); //2000mSeconds update rate
+}, 500); //2000mSeconds update rate
 
 function getData() {
   var xhttp = new XMLHttpRequest();
