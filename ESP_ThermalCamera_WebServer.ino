@@ -28,10 +28,12 @@
 
 #include <SPI.h>
 #include <Wire.h>
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <WebServer.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1331.h>
-
-
+#include "index.h"                //Our HTML webpage contents with javascripts
 #include "MLX90640_API.h"
 #include "MLX90640_I2C_Driver.h"
 
@@ -90,16 +92,31 @@ const uint16_t camColors[] = {0x480F,
                               0xF080, 0xF060, 0xF040, 0xF020, 0xF800,
                              };
 
+WebServer server(80);
+
+//Enter your SSID and PASSWORD
+const char* ssid = "ESP";
+const char* password = "camera";
 
 float p = 3.1415926;
 Adafruit_SSD1331 display = Adafruit_SSD1331(cs, dc, mosi, sclk, rst);
-//Adafruit_SSD1331 display = Adafruit_SSD1331(&SPI, cs, dc, rst);
+
+float MaxTemp = 0;
+float MinTemp = 0;
+float CenterTemp = 0;
+
+// SETUP
+//==========================================================================
 
 void setup()
 {
   Wire.begin();
   Wire.setClock(400000); //Increase I2C clock speed to 400kHz
   Serial.begin(115200);while (!Serial); //Wait for user to open terminal
+
+  //ESP32 As access point
+  WiFi.mode(WIFI_AP); //Access Point mode
+  WiFi.softAP(ssid, password);
   
   Serial.print("SDA pin: "); Serial.println(SDA);
   Serial.print("SCL pin: ");Serial.println(SCL);
@@ -147,12 +164,29 @@ void setup()
   display.fillScreen(BLACK);
   lcdTestThermalImage();
   delay(1000);
-  display.fillScreen(BLACK);
+  //display.fillScreen(BLACK);
   //Once params are extracted, we can release eeMLX90640 array
+
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());   //IP address assigned to your ESP
+  display.print(WiFi.localIP());    // IP address on Display
+//----------------------------------------------------------------
+ 
+  server.on("/", handleRoot);      //This is display page
+  server.on("/readADC", handleADC);//To get update of ADC Value only
+ 
+  server.begin();                  //Start server
+  Serial.println("HTTP server started");
 }
+
+
+// LOOP
+//===========================================================================
 
 void loop()
 {
+  server.handleClient();
+
   
   for (byte x = 0 ; x < 2 ; x++) //Read both subpages
   {
@@ -173,9 +207,9 @@ void loop()
     MLX90640_CalculateTo(mlx90640Frame, &mlx90640, emissivity, tr, mlx90640To);
   }
   
-    float MaxTemp = 0;
-    float MinTemp = 0;
-    float CenterTemp = (mlx90640To[165]+mlx90640To[180]+mlx90640To[176]+mlx90640To[192]) / 4.0;  // Temp in Center - based on 4 pixels
+    //float MaxTemp = 0;                // Variables as global
+    //float MinTemp = 0;
+    CenterTemp = (mlx90640To[165]+mlx90640To[180]+mlx90640To[176]+mlx90640To[192]) / 4.0;  // Temp in Center - based on 4 pixels
 
     MaxTemp = mlx90640To[0];            // Get first data to find Max and Min Temperature
     MinTemp = mlx90640To[0];
@@ -223,6 +257,21 @@ void loop()
   //display.fillScreen(BLACK);
   
   }
+
+// ----------- FUNCTION ----- FUNCTION ----- FUNCTION ----- //
+
+//===============================================================
+// This routine is executed when you open its IP in browser
+//===============================================================
+void handleRoot() {
+ String s = MAIN_page; //Read HTML contents
+ server.send(200, "text/html", s); //Send web page
+}
+
+void handleADC() {
+  extern float CenterTemp;
+  server.send(200, "text/plane", CenterTemp); //Send ADC value only to client ajax request
+}
 
 //Returns true if the MLX90640 is detected on the I2C bus
 boolean isConnected()
