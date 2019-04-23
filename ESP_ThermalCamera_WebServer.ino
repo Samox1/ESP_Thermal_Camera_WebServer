@@ -1,31 +1,11 @@
 /*
-  Read the temperature pixels from the MLX90640 IR array
-  By: Nathan Seidle
-  SparkFun Electronics
-  Date: May 22nd, 2018
-  License: MIT. See license file for more information but you can
-  basically do whatever you want with this code.
-
-  Feel like supporting open source hardware?
-  Buy a board from SparkFun! https://www.sparkfun.com/products/14769
-
-  This example initializes the MLX90640 and outputs the 768 temperature values
-  from the 768 pixels.
-
-  This example will work with a Teensy 3.1 and above. The MLX90640 requires some
-  hefty calculations and larger arrays. You will need a microcontroller with 20,000
-  bytes or more of RAM.
-
-  This relies on the driver written by Melexis and can be found at:
-  https://github.com/melexis/mlx90640-library
-
-  Hardware Connections:
-  Connect the SparkFun Qwiic Breadboard Jumper (https://www.sparkfun.com/products/14425)
-  to the Qwiic board
-  Connect the male pins to the Teensy. The pinouts can be found here: https://www.pjrc.com/teensy/pinout.html
-  Open the serial monitor at 9600 baud to see the output
+Thermal Image Camera - Project using ESP8266 or ESP32 and MLX90640 sensor (32x24 px)
+Design with 0.95' OLED (SD1331) and WebServer to see images (with interpolation) on any other device
+Project based on MLX data sheet and examples
+Author: Szymon Baczyński
+Date: April 2019
+Version: V1 
 */
-
 #include <SPI.h>
 #include <Wire.h>
 #include <WiFi.h>
@@ -120,7 +100,6 @@ void setup()
   
   Serial.print("SDA pin: "); Serial.println(SDA);
   Serial.print("SCL pin: ");Serial.println(SCL);
-
   
   Serial.println("MLX90640 IR Array Example");
 
@@ -160,16 +139,20 @@ void setup()
   display.fillScreen(BLACK);
   display.setCursor(0,0);
   display.print("Welcome!\nThis is example of Thermal Image Camera based on MLX90640 sensor.\n by SamoX");
-  delay(1000);
+  delay(2000);
   display.fillScreen(BLACK);
   lcdTestThermalImage();
   delay(1000);
   //display.fillScreen(BLACK);
   //Once params are extracted, we can release eeMLX90640 array
 
+// --- Part WebServer ESP --- //
+  
+  IPAddress ServerIP = WiFi.softAPIP(); // Obtain the IP of the Serve
   Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());   //IP address assigned to your ESP
-  display.print(WiFi.localIP());    // IP address on Display
+  Serial.println(ServerIP);   //IP address assigned to your ESP
+  display.setCursor(0,49);
+  display.print(ServerIP);    // IP address on Display
 //----------------------------------------------------------------
  
   server.on("/", handleRoot);      //This is display page
@@ -207,13 +190,62 @@ void loop()
     MLX90640_CalculateTo(mlx90640Frame, &mlx90640, emissivity, tr, mlx90640To);
   }
   
+    // Calculate difference between Subpages (chess-mode)
+    int pa = 0;
+    int niepa = 0;
+    float sumpa = 0;
+    float sumniepa = 0;
+
+    int w = 32;
+    int h = 24;
+
+    for(int i=0; i<h; i++) {
+      for(int j=0; j<w; j++) {
+        if((i+j)%2 == 0){
+          //Serial.println(j+(w*i));
+          sumpa = mlx90640To[j+(w*i)];
+          pa++;
+        }else{
+          //Serial.print("*"); Serial.println(j+(w*i));
+          sumniepa = mlx90640To[j+(w*i)];
+          niepa++;
+        }
+      }
+    }
+
+    sumpa = sumpa / (float)pa;
+    sumniepa = sumniepa / (float)niepa;
+    float diff = sumpa - sumniepa;          // Difference between even and odd 
+    
+    if(diff < 0.0){
+      for(int i=0; i<h; i++) {
+        for(int j=0; j<w; j++) {
+          if((i+j)%2 == 0){
+            //mlx90640To[j+(w*i)] += abs(diff); 
+          }else{
+            mlx90640To[j+(w*i)] += abs(diff);
+          }
+        }
+      }
+    }else{
+       for(int i=0; i<h; i++) {
+        for(int j=0; j<w; j++) {
+          if((i+j)%2 == 0){
+            mlx90640To[j+(w*i)] += abs(diff); 
+          }else{
+            //mlx90640To[j+(w*i)] += abs(diff);
+          }
+        }
+      }
+    }
+
     //float MaxTemp = 0;                // Variables as global
     //float MinTemp = 0;
     CenterTemp = (mlx90640To[165]+mlx90640To[180]+mlx90640To[176]+mlx90640To[192]) / 4.0;  // Temp in Center - based on 4 pixels
 
     MaxTemp = mlx90640To[0];            // Get first data to find Max and Min Temperature
     MinTemp = mlx90640To[0];
-  
+    
     for (int x = 0 ; x < 768 ; x++)     // Find Maximum and Minimum Temperature
     {
       if (mlx90640To[x] > MaxTemp){
@@ -242,16 +274,7 @@ void loop()
     display.print(MinTemp,2);
   
 
- 
-  for (int x = 0 ; x < 768 ; x++)
-  {
-    //Serial.print("Pixel ");
-    Serial.print(x);
-    Serial.print(": ");
-    Serial.print(mlx90640To[x], 2);
-    //Serial.print("C");
-    Serial.println();
-  }
+  //MLX_to_Serial(mlx90640To);
 
   delay(100);
   //display.fillScreen(BLACK);
@@ -318,4 +341,16 @@ void lcdTestThermalImage(void)
   display.endWrite();
 }
 
+void MLX_to_Serial(float mlx90640To[])
+{
+  for (int x = 0 ; x < 768 ; x++)
+  {
+    //Serial.print("Pixel ");
+    Serial.print(x);
+    Serial.print(": ");
+    Serial.print(mlx90640To[x], 2);
+    //Serial.print("C");
+    Serial.println();
+  }
+}
 
