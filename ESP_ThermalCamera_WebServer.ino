@@ -6,6 +6,8 @@ Author: Szymon Baczyński
 Date: April 2019
 Version: V1 
 */
+
+
 #include <SPI.h>
 #include <Wire.h>
 #include <WiFi.h>
