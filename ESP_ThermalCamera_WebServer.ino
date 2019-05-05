@@ -298,8 +298,8 @@ void handleRoot() {
 
 void handleADC() {
   extern float CenterTemp;
-
-  server.send(200, "text/plane", String(CenterTemp)); //Send ADC value only to client ajax request
+  server.send(200, "image", "thermal.pmg");
+  //server.send(200, "text/plane", String(CenterTemp)); //Send ADC value only to client ajax request
 }
 
 //Returns true if the MLX90640 is detected on the I2C bus
@@ -312,7 +312,7 @@ boolean isConnected()
 }
 
 
-void ThermalImageToWeb(float mlx90640To[], float MinTemp, float MaxTemp)
+unsigned char ThermalImageToWeb(float mlx90640To[], float MinTemp, float MaxTemp)
 {
   const char *filename = "thermal.pgm";
   uint8_t w,h;
@@ -335,6 +335,7 @@ void ThermalImageToWeb(float mlx90640To[], float MinTemp, float MaxTemp)
   fprintf(fp, "P5\n %s\n %d\n %d\n %d\n", comment, x, y, MaxColorComponentValue);   /* write header to the file */
   fwrite(pic, sizeof(pic), 1, fp);   /* write image data bytes to the file */
   fclose(fp);
+  return pic;
 }
 
 
