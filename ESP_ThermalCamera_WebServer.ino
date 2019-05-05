@@ -298,6 +298,7 @@ void handleRoot() {
 
 void handleADC() {
   extern float CenterTemp;
+
   server.send(200, "text/plane", String(CenterTemp)); //Send ADC value only to client ajax request
 }
 
@@ -310,11 +311,39 @@ boolean isConnected()
   return (true);
 }
 
+
+void ThermalImageToWeb(float mlx90640To[], float MinTemp, float MaxTemp)
+{
+  const char *filename = "thermal.pgm";
+  uint8_t w,h;
+  uint8_t x = 32;
+  uint8_t y = 24;
+  unsigned char pic[y][x];
+  const int MaxColorComponentValue = 255;
+  const char *comment = "# this is my new binary pgm file";
+  FILE * fp;
+  
+  for (h = 0; h < y; h++) {
+    for (w = 0; w < x; w++) {
+      uint8_t colorIndex = map(mlx90640To[w+(x*h)], MinTemp-5.0, MaxTemp+5.0, 0, 255);
+      colorIndex = constrain(colorIndex, 0, 255);
+      pic[y][x] = colorIndex;
+    }  
+  }
+  
+  fp = fopen(filename, "wb");
+  fprintf(fp, "P5\n %s\n %d\n %d\n %d\n", comment, x, y, MaxColorComponentValue);   /* write header to the file */
+  fwrite(pic, sizeof(pic), 1, fp);   /* write image data bytes to the file */
+  fclose(fp);
+}
+
+
 void lcdThermalImage(float mlx90640To[], float MinTemp, float MaxTemp)
 {
   uint8_t w,h;
   uint8_t box = 2;
   display.setAddrWindow(0, 0, 96, 64);
+  
 
   for (h = 0; h < 24; h++) {
     for (w = 0; w < 32; w++) {
