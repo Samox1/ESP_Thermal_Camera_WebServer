@@ -142,7 +142,7 @@ const char index_html[] PROGMEM = R"rawliteral(
     <span id="tempmin">%TEMPMIN%</span>
     <sup class="units">&deg;C</sup>
 
-    <img src="thermal" style="width: 100%">
+    <img src="thermal" id="thermalimage" style="width: 100%">
   </p>
 </body>
 <script>
@@ -172,9 +172,12 @@ setInterval(function ( ) {
 setInterval(function ( ) {
   var xhttp = new XMLHttpRequest();
   xhttp.onreadystatechange = function() {
-    if (this.readyState == 4 && this.status == 200) {
-      document.getElementById("thermal") = this.responseText;
-    }
+    //if (this.readyState == 4 && this.status == 200) {
+      var image = document.getElementById("thermalimage");
+      //image.src = this.response;
+      image.src = "thermal";
+      //document.getElementById("thermal") = this.response;
+    //}
   };
   xhttp.open("GET", "/thermal", true);
   xhttp.send();
@@ -183,18 +186,20 @@ setInterval(function ( ) {
 </script>
 </html>)rawliteral";
 
-// Replaces placeholder with DHT values
+
+// Replaces placeholder with values
 String processor(const String& var){
   //Serial.println(var);
   if(var == "TEMPERATURE"){
-    //ThermalImageToWeb(mlx90640To[], MinTemp, MaxTemp);
     return getCenterTemp();
   }
   if(var == "TEMPMIN"){
     return getMinTemp();
   }
+  
   return String();
 }
+
 
 //Returns true if the MLX90640 is detected on the I2C bus
 boolean isConnected()
