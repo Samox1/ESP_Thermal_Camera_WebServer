@@ -12,7 +12,9 @@ Version: V1
 #include <Wire.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
-#include <WebServer.h>
+#include "ESPAsyncWebServer.h"
+#include "SPIFFS.h"
+//#include <WebServer.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1331.h>
 #include "index.h"                //Our HTML webpage contents with javascripts
@@ -44,6 +46,8 @@ paramsMLX90640 mlx90640;
 #define YELLOW          0xFFE0
 #define WHITE           0xFFFF
 
+#define PART_BOUNDARY "123456789000000000000987654321"
+
 //the colors we will be using
 const uint16_t camColors[] = {0x480F,
                               0x400F, 0x400F, 0x400F, 0x4010, 0x3810, 0x3810, 0x3810, 0x3810, 0x3010, 0x3010,
@@ -74,7 +78,9 @@ const uint16_t camColors[] = {0x480F,
                               0xF080, 0xF060, 0xF040, 0xF020, 0xF800,
                              };
 
-WebServer server(80);
+//WebServer server(80);
+// Create AsyncWebServer object on port 80
+AsyncWebServer server(80);
 
 //Enter your SSID and PASSWORD
 const char* ssid = "ESP";
@@ -87,6 +93,302 @@ float MaxTemp = 0;
 float MinTemp = 0;
 float CenterTemp = 0;
 
+
+String getCenterTemp(){
+  extern float CenterTemp;
+  return String(CenterTemp);
+}
+String getMinTemp(){
+  extern float MinTemp;
+  return String(MinTemp);
+}
+
+const char index_html[] PROGMEM = R"rawliteral(
+<!DOCTYPE HTML><html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+  <style>
+    html {
+     font-family: Arial;
+     display: inline-block;
+     margin: 0px auto;
+     text-align: center;
+    }
+    h2 { font-size: 3.0rem; }
+    p { font-size: 3.0rem; }
+    .units { font-size: 1.2rem; }
+    .dht-labels{
+      font-size: 1.5rem;
+      vertical-align:middle;
+      padding-bottom: 15px;
+    }
+    img { 
+      display: inline-block;
+      vertical-align: middle;
+      max-height: 100%;
+      max-width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <h2>ESP32 Thermal Camera</h2>
+  <p>
+    <i class="fas fa-thermometer-half" style="color:#059e8a;"></i> 
+    <span class="dht-labels">Temperature: </span> 
+    <span id="temperature">%TEMPERATURE%</span>
+    <sup class="units">&deg;C</sup>
+    <span class="dht-labels">Temperature Min: </span> 
+    <span id="tempmin">%TEMPMIN%</span>
+    <sup class="units">&deg;C</sup>
+
+    <img src="thermal" style="width: 100%">
+  </p>
+</body>
+<script>
+
+setInterval(function ( ) {
+  var xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+      document.getElementById("temperature").innerHTML = this.responseText;
+    }
+  };
+  xhttp.open("GET", "/temperature", true);
+  xhttp.send();
+}, 1000 ) ;
+
+setInterval(function ( ) {
+  var xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+      document.getElementById("tempmin").innerHTML = this.responseText;
+    }
+  };
+  xhttp.open("GET", "/tempmin", true);
+  xhttp.send();
+}, 1000 ) ;
+
+setInterval(function ( ) {
+  var xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+      document.getElementById("thermal") = this.responseText;
+    }
+  };
+  xhttp.open("GET", "/thermal", true);
+  xhttp.send();
+}, 1000 ) ;
+
+</script>
+</html>)rawliteral";
+
+// Replaces placeholder with DHT values
+String processor(const String& var){
+  //Serial.println(var);
+  if(var == "TEMPERATURE"){
+    //ThermalImageToWeb(mlx90640To[], MinTemp, MaxTemp);
+    return getCenterTemp();
+  }
+  if(var == "TEMPMIN"){
+    return getMinTemp();
+  }
+  return String();
+}
+
+//Returns true if the MLX90640 is detected on the I2C bus
+boolean isConnected()
+{
+  Wire.beginTransmission((uint8_t)MLX90640_address);
+  if (Wire.endTransmission() != 0)
+    return (false); //Sensor did not ACK
+  return (true);
+}
+
+
+//void getThermalImage(){ }
+
+
+void ThermalImageToWeb(float mlx90640To[], float MinTemp, float MaxTemp)
+{
+  // --- SAVE BMP FILE --- //
+  uint8_t colorIndex = 0;
+  uint16_t color = 0;
+  unsigned int headers[13];
+  int extrabytes;
+  int paddedsize;
+  int x = 0; 
+  int y = 0; 
+  int n = 0;
+  int red = 0;
+  int green = 0;
+  int blue = 0;
+  
+  int WIDTH = 32;
+  int HEIGHT = 24;
+
+  extrabytes = 4 - ((WIDTH * 3) % 4);                 // How many bytes of padding to add to each
+                                                    // horizontal line - the size of which must
+                                                    // be a multiple of 4 bytes.
+  if (extrabytes == 4)
+    extrabytes = 0;
+
+  paddedsize = ((WIDTH * 3) + extrabytes) * HEIGHT;
+
+// Headers...
+// Note that the "BM" identifier in bytes 0 and 1 is NOT included in these "headers".
+
+  headers[0]  = paddedsize + 54;      // bfSize (whole file size)
+  headers[1]  = 0;                    // bfReserved (both)
+  headers[2]  = 54;                   // bfOffbits
+  headers[3]  = 40;                   // biSize
+  headers[4]  = WIDTH;                // biWidth
+  headers[5]  = HEIGHT;               // biHeight
+
+// Would have biPlanes and biBitCount in position 6, but they're shorts.
+// It's easier to write them out separately (see below) than pretend
+// they're a single int, especially with endian issues...
+
+  headers[7]  = 0;                    // biCompression
+  headers[8]  = paddedsize;           // biSizeImage
+  headers[9]  = 0;                    // biXPelsPerMeter
+  headers[10] = 0;                    // biYPelsPerMeter
+  headers[11] = 0;                    // biClrUsed
+  headers[12] = 0;                    // biClrImportant
+
+// outfile = fopen(filename, "wb");
+
+  File file = SPIFFS.open("/thermal.bmp", "wb");
+  if (!file) {
+    Serial.println("There was an error opening the file for writing");
+    //return;
+  }else{
+
+// Headers begin...
+// When printing ints and shorts, we write out 1 character at a time to avoid endian issues.
+
+  file.print("BM");
+
+  for (n = 0; n <= 5; n++)
+  { 
+    file.printf("%c", headers[n] & 0x000000FF);
+    file.printf("%c", (headers[n] & 0x0000FF00) >> 8);
+    file.printf("%c", (headers[n] & 0x00FF0000) >> 16);
+    file.printf("%c", (headers[n] & (unsigned int) 0xFF000000) >> 24);
+  }
+
+// These next 4 characters are for the biPlanes and biBitCount fields.
+
+  file.printf("%c", 1);
+  file.printf("%c", 0);
+  file.printf("%c", 24);
+  file.printf("%c", 0);
+
+  for (n = 7; n <= 12; n++)
+  {
+    file.printf("%c", headers[n] & 0x000000FF);
+    file.printf("%c", (headers[n] & 0x0000FF00) >> 8);
+    file.printf("%c", (headers[n] & 0x00FF0000) >> 16);
+    file.printf("%c", (headers[n] & (unsigned int) 0xFF000000) >> 24);
+  }
+
+// Headers done, now write the data...
+
+  for (y = HEIGHT - 1; y >= 0; y--)     // BMP image format is written from bottom to top...
+  {
+    for (x = 0; x <= WIDTH - 1; x++)
+    {
+      // --- Read ColorIndex corresponding to Pixel Temperature --- //
+      colorIndex = map(mlx90640To[x+(32*y)], MinTemp-5.0, MaxTemp+5.0, 0, 255);
+      colorIndex = constrain(colorIndex, 0, 255);
+      color = camColors[colorIndex];
+      
+      // --- Converts 4 Digits HEX to RGB565 --- //
+      // uint8_t r = ((color >> 11) & 0x1F);
+      // uint8_t g = ((color >> 5) & 0x3F);
+      // uint8_t b = (color & 0x1F);
+
+      // --- Converts 4 Digits HEX to RGB565 -> RGB888 --- //
+      red = ((((color >> 11) & 0x1F) * 527) + 23) >> 6;
+      green = ((((color >> 5) & 0x3F) * 259) + 33) >> 6;
+      blue = (((color & 0x1F) * 527) + 23) >> 6;
+
+      // --- RGB range from 0 to 255 --- //
+      if (red > 255) red = 255; if (red < 0) red = 0;
+      if (green > 255) green = 255; if (green < 0) green = 0;
+      if (blue > 255) blue = 255; if (blue < 0) blue = 0;
+
+      // Also, it's written in (b,g,r) format...
+
+      file.printf("%c", blue);
+      file.printf("%c", green);
+      file.printf("%c", red);
+    }
+    if (extrabytes)      // See above - BMP lines must be of lengths divisible by 4.
+    {
+      for (n = 1; n <= extrabytes; n++)
+      {
+         file.printf("%c", 0);
+      }
+    }
+  }
+
+  file.close();
+  Serial.println("File Closed");
+  }         // --- END SAVING BMP FILE --- //
+}
+
+
+void lcdThermalImage(float mlx90640To[], float MinTemp, float MaxTemp)
+{
+  uint8_t w,h;
+  uint8_t box = 2;
+  display.setAddrWindow(0, 0, 96, 64);
+  
+  for (h = 0; h < 24; h++) {
+    for (w = 0; w < 32; w++) {
+      uint8_t colorIndex = map(mlx90640To[w+(32*h)], MinTemp-5.0, MaxTemp+5.0, 0, 255);
+      colorIndex = constrain(colorIndex, 0, 255);
+      
+      display.fillRect(box * w, box * h, box, box, camColors[colorIndex]);
+      //display.writePixel(w, h, camColors[colorIndex]);
+    }  
+  }
+  display.endWrite();
+}
+
+
+void lcdTestThermalImage(void)
+{
+  uint8_t w,h;
+  display.setAddrWindow(0, 0, 96, 64);
+
+  for (h = 0; h < 48; h++) {
+    for (w = 0; w < 64; w++) {
+      if (h*w <= 255) {
+        display.writePixel(w, h, camColors[h*w]);
+      } else{
+        display.writePixel(w, h, RED);
+      }
+    }
+  }
+  display.endWrite();
+}
+
+void MLX_to_Serial(float mlx90640To[])
+{
+  for (int x = 0 ; x < 768 ; x++)
+  {
+    //Serial.print("Pixel ");
+    Serial.print(x);
+    Serial.print(": ");
+    Serial.print(mlx90640To[x], 2);
+    //Serial.print("C");
+    Serial.println();
+  }
+}
+
+
 // SETUP
 //==========================================================================
 
@@ -96,6 +398,10 @@ void setup()
   Wire.setClock(400000); //Increase I2C clock speed to 400kHz
   Serial.begin(115200);while (!Serial); //Wait for user to open terminal
 
+  if(!SPIFFS.begin(true)){
+      Serial.println("An Error has occurred while mounting SPIFFS");
+      return;
+}
   //ESP32 As access point
   WiFi.mode(WIFI_AP); //Access Point mode
   WiFi.softAP(ssid, password);
@@ -156,9 +462,21 @@ void setup()
   display.setCursor(0,49);
   display.print(ServerIP);    // IP address on Display
 //----------------------------------------------------------------
- 
-  server.on("/", handleRoot);      //This is display page
-  server.on("/readADC", handleADC);//To get update of ADC Value only
+
+  // Route for root / web page
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/html", index_html, processor);
+    //request->send_P(200, "text/html", index_html);
+  });
+  server.on("/temperature", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/plain", getCenterTemp().c_str());
+  });
+  server.on("/tempmin", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/plain", getMinTemp().c_str());
+  });
+  server.on("/thermal", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/thermal.bmp", "image/bmp", false);
+  });
  
   server.begin();                  //Start server
   Serial.println("HTTP server started");
@@ -170,9 +488,7 @@ void setup()
 
 void loop()
 {
-  server.handleClient();
-
-  
+  // Read Thermal Image from MLX90640
   for (byte x = 0 ; x < 2 ; x++) //Read both subpages
   {
     uint16_t mlx90640Frame[834];
@@ -241,8 +557,7 @@ void loop()
       }
     }
 */
-    //float MaxTemp = 0;                // Variables as global
-    //float MinTemp = 0;
+
     CenterTemp = (mlx90640To[165]+mlx90640To[180]+mlx90640To[176]+mlx90640To[192]) / 4.0;  // Temp in Center - based on 4 pixels
 
     MaxTemp = mlx90640To[0];            // Get first data to find Max and Min Temperature
@@ -260,8 +575,9 @@ void loop()
 
     //MaxTemp = 40.0;
     //MinTemp = 0.0;
-    
+    ThermalImageToWeb(mlx90640To, MinTemp, MaxTemp);
     //display.fillRect(0, 0, 96, 48, BLACK);    // Black important sector - image and text on right side
+    
     lcdThermalImage(mlx90640To, MinTemp, MaxTemp);    // Function to draw Thermal Image on OLED 
 
     display.fillRect(66, 0, 30, 48, BLACK);     // Black only text with Max, Center and Min temperature
@@ -285,107 +601,4 @@ void loop()
   //display.fillScreen(BLACK);
   
   }
-
-// ----------- FUNCTION ----- FUNCTION ----- FUNCTION ----- //
-
-//===============================================================
-// This routine is executed when you open its IP in browser
-//===============================================================
-void handleRoot() {
- String s = MAIN_page; //Read HTML contents
- server.send(200, "text/html", s); //Send web page
-}
-
-void handleADC() {
-  extern float CenterTemp;
-  server.send(200, "image", "thermal.pmg");
-  //server.send(200, "text/plane", String(CenterTemp)); //Send ADC value only to client ajax request
-}
-
-//Returns true if the MLX90640 is detected on the I2C bus
-boolean isConnected()
-{
-  Wire.beginTransmission((uint8_t)MLX90640_address);
-  if (Wire.endTransmission() != 0)
-    return (false); //Sensor did not ACK
-  return (true);
-}
-
-
-unsigned char ThermalImageToWeb(float mlx90640To[], float MinTemp, float MaxTemp)
-{
-  const char *filename = "thermal.pgm";
-  uint8_t w,h;
-  uint8_t x = 32;
-  uint8_t y = 24;
-  unsigned char pic[y][x];
-  const int MaxColorComponentValue = 255;
-  const char *comment = "# this is my new binary pgm file";
-  FILE * fp;
-  
-  for (h = 0; h < y; h++) {
-    for (w = 0; w < x; w++) {
-      uint8_t colorIndex = map(mlx90640To[w+(x*h)], MinTemp-5.0, MaxTemp+5.0, 0, 255);
-      colorIndex = constrain(colorIndex, 0, 255);
-      pic[y][x] = colorIndex;
-    }  
-  }
-  
-  fp = fopen(filename, "wb");
-  fprintf(fp, "P5\n %s\n %d\n %d\n %d\n", comment, x, y, MaxColorComponentValue);   /* write header to the file */
-  fwrite(pic, sizeof(pic), 1, fp);   /* write image data bytes to the file */
-  fclose(fp);
-  return pic;
-}
-
-
-void lcdThermalImage(float mlx90640To[], float MinTemp, float MaxTemp)
-{
-  uint8_t w,h;
-  uint8_t box = 2;
-  display.setAddrWindow(0, 0, 96, 64);
-  
-
-  for (h = 0; h < 24; h++) {
-    for (w = 0; w < 32; w++) {
-      uint8_t colorIndex = map(mlx90640To[w+(32*h)], MinTemp-5.0, MaxTemp+5.0, 0, 255);
-      colorIndex = constrain(colorIndex, 0, 255);
-      
-      display.fillRect(box * w, box * h, box, box, camColors[colorIndex]);
-      //display.writePixel(w, h, camColors[colorIndex]);
-    }  
-  }
-  display.endWrite();
-}
-
-
-void lcdTestThermalImage(void)
-{
-  uint8_t w,h;
-  display.setAddrWindow(0, 0, 96, 64);
-
-  for (h = 0; h < 48; h++) {
-    for (w = 0; w < 64; w++) {
-      if (h*w <= 255) {
-        display.writePixel(w, h, camColors[h*w]);
-      } else{
-        display.writePixel(w, h, RED);
-      }
-    }
-  }
-  display.endWrite();
-}
-
-void MLX_to_Serial(float mlx90640To[])
-{
-  for (int x = 0 ; x < 768 ; x++)
-  {
-    //Serial.print("Pixel ");
-    Serial.print(x);
-    Serial.print(": ");
-    Serial.print(mlx90640To[x], 2);
-    //Serial.print("C");
-    Serial.println();
-  }
-}
 
