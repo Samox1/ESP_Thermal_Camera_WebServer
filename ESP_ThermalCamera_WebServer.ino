@@ -5,6 +5,7 @@ Project based on MLX data sheet and examples
 Author: Szymon Baczyński
 Date: April 2019
 Version: Ver 1.1 
+GitHub: https://github.com/Samox1/ESP_Thermal_Camera_WebServer
 */
 
 #include <SPI.h>
@@ -610,8 +611,8 @@ void loop()
     ThermalImageToWeb(mlx90640To, MinTemp, MaxTemp);
     //display.fillRect(0, 0, 96, 48, BLACK);    // Black important sector - image and text on right side
     
-    //lcdThermalImage(mlx90640To, MinTemp, MaxTemp);    // Function to draw Thermal Image on OLED 
-/*
+    lcdThermalImage(mlx90640To, MinTemp, MaxTemp);    // Function to draw Thermal Image on OLED 
+
     display.fillRect(66, 0, 30, 48, BLACK);     // Black only text with Max, Center and Min temperature
     
     display.setCursor(66,0);                    // Text with Max, Center and Min Temperature on right side
@@ -625,7 +626,7 @@ void loop()
     display.setCursor(66,36);
     display.setTextColor(BLUE);
     display.print(MinTemp,2);
-*/ 
+ 
     //MLX_to_Serial(mlx90640To);
     //display.fillScreen(BLACK);
     
