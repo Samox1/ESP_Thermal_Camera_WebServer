@@ -8,5 +8,14 @@ Thermal Camera based on: <br>
 4) ESPAsyncWebServer
 5) SPIFFS - file system 
 
+Important features:
+[x] - Grabbing thermal image from MLX90640
+[x] - Test image on OLED
+[x] - Show thermal image on OLED
+[x] - Build WebServer with ESPAsyncWebServer
+[x] - Automatic update of variables (e.g. MaxTemp) on Website
+[x] - Save thermal image as picture (BMP) in SPIFFS
+[x] - Show Thermal Image (BMP) on Website
+[x] - Automatic update of BMP (suitable SetInterval in <script>)
 
 
