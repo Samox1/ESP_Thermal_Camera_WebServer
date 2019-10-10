@@ -7,6 +7,7 @@ Thermal Camera based on: <br>
 3) 0.95' OLED (SD1331)
 4) ESPAsyncWebServer
 5) SPIFFS - file system 
+<br>
 
 Important features - TO DO LIST:
 - [x] Grabbing thermal image from MLX90640
@@ -17,5 +18,10 @@ Important features - TO DO LIST:
 - [x] Save thermal image as picture (BMP) in SPIFFS
 - [x] Show Thermal Image (BMP) on Website
 - [x] Automatic update of BMP (suitable SetInterval in <script>)
+- [ ] Tweak updating Thermal Image (now SetInterval set to 1 sec - buggy image if set <1sec or there is more Clients)
+- [ ] Maybe Stream thermal image to Website (because why not) - faster updating
+- [ ] Add Switch on Website to On/Off OLED display
 
 
+Note: 10/10/2019<br>
+I have MLX90640 files that are 6 months old. The latest files from Melexis contain a bug in the MLX90640_API.cpp file.
