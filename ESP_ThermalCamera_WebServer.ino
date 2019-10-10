@@ -4,9 +4,8 @@ Design with 0.95' OLED (SD1331) and WebServer to see images (with interpolation)
 Project based on MLX data sheet and examples
 Author: Szymon Baczyński
 Date: April 2019
-Version: V1 
+Version: Ver 1.1 
 */
-
 
 #include <SPI.h>
 #include <Wire.h>
@@ -98,6 +97,10 @@ String getCenterTemp(){
   extern float CenterTemp;
   return String(CenterTemp);
 }
+String getMaxTemp(){
+  extern float MaxTemp;
+  return String(MaxTemp);
+}
 String getMinTemp(){
   extern float MinTemp;
   return String(MinTemp);
@@ -137,8 +140,13 @@ const char index_html[] PROGMEM = R"rawliteral(
     <i class="fas fa-thermometer-half" style="color:#059e8a;"></i> 
     <span class="dht-labels">Temperature: </span> 
     <span id="temperature">%TEMPERATURE%</span>
-    <sup class="units">&deg;C</sup>
-    <span class="dht-labels">Temperature Min: </span> 
+    <sup class="units">&deg;C</sup><br>
+    
+    <span class="dht-labels">Temp Max: </span> 
+    <span id="tempmax">%TEMPMAX%</span>
+    <sup class="units">&deg;C</sup><br>
+    
+    <span class="dht-labels">Temp Min: </span> 
     <span id="tempmin">%TEMPMIN%</span>
     <sup class="units">&deg;C</sup>
 
@@ -155,6 +163,17 @@ setInterval(function ( ) {
     }
   };
   xhttp.open("GET", "/temperature", true);
+  xhttp.send();
+}, 1000 ) ;
+
+setInterval(function ( ) {
+  var xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+      document.getElementById("tempmax").innerHTML = this.responseText;
+    }
+  };
+  xhttp.open("GET", "/tempmax", true);
   xhttp.send();
 }, 1000 ) ;
 
@@ -192,6 +211,9 @@ String processor(const String& var){
   //Serial.println(var);
   if(var == "TEMPERATURE"){
     return getCenterTemp();
+  }
+  if(var == "TEMPMAX"){
+    return getMaxTemp();
   }
   if(var == "TEMPMIN"){
     return getMinTemp();
@@ -434,8 +456,11 @@ void setup()
   if (status != 0)
     Serial.println("Parameter extraction failed");
   
-  int SetRefreshRate;
+  int SetRefreshRate = 0;
   SetRefreshRate = MLX90640_SetRefreshRate(0x33,0x03);
+  //int SetInterleavedMode = MLX90640_SetInterleavedMode(MLX90640_address);
+  int SetChessMode = MLX90640_SetChessMode(MLX90640_address);
+  
 
 // --- Part Display OLED --- //
 
@@ -476,6 +501,9 @@ void setup()
   server.on("/temperature", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/plain", getCenterTemp().c_str());
   });
+  server.on("/tempmax", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/plain", getMaxTemp().c_str());
+  });
   server.on("/tempmin", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/plain", getMinTemp().c_str());
   });
@@ -512,7 +540,8 @@ void loop()
 
     MLX90640_CalculateTo(mlx90640Frame, &mlx90640, emissivity, tr, mlx90640To);
   }
-  
+
+  // --- START of Calculate Chess Mode --- //
     // Calculate difference between Subpages (chess-mode)
 /*    int pa = 0;
     int niepa = 0;
@@ -560,8 +589,8 @@ void loop()
           }
         }
       }
-    }
-*/
+    }       */
+// --- END of Calculate Chess Mode --- //
 
     CenterTemp = (mlx90640To[165]+mlx90640To[180]+mlx90640To[176]+mlx90640To[192]) / 4.0;  // Temp in Center - based on 4 pixels
 
@@ -578,8 +607,7 @@ void loop()
       }
     }
 
-    //MaxTemp = 40.0;
-    //MinTemp = 0.0;
+
     ThermalImageToWeb(mlx90640To, MinTemp, MaxTemp);
     //display.fillRect(0, 0, 96, 48, BLACK);    // Black important sector - image and text on right side
     
@@ -599,11 +627,9 @@ void loop()
     display.setTextColor(BLUE);
     display.print(MinTemp,2);
   
-
-  //MLX_to_Serial(mlx90640To);
-
+    //MLX_to_Serial(mlx90640To);
+    //display.fillScreen(BLACK);
+    
   delay(100);
-  //display.fillScreen(BLACK);
-  
   }
 
