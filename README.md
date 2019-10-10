@@ -6,4 +6,7 @@ Thermal Camera based on: <br>
 2) MLX 90640 Thermal Camera 32x24 pixels
 3) 0.95' OLED (SD1331)
 4) ESPAsyncWebServer
+5) SPIFFS - file system 
+
+
 
