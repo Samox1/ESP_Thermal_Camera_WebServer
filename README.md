@@ -18,6 +18,7 @@ Important features - TO DO LIST:
 - [x] Save thermal image as picture (BMP) in SPIFFS
 - [x] Show Thermal Image (BMP) on Website
 - [x] Automatic update of BMP (suitable SetInterval in <script>)
+- [x] Case - 3D Model and print it on FDM 3D Printer
 - [ ] Tweak updating Thermal Image (now SetInterval set to 1 sec - buggy image if set <1sec or there is more Clients)
 - [ ] Maybe Stream thermal image to Website (because why not) - faster updating
 - [ ] Add Switch on Website to On/Off OLED display
