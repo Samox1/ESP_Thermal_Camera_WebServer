@@ -592,7 +592,7 @@ void loop()
     }       */
 // --- END of Calculate Chess Mode --- //
 
-    CenterTemp = (mlx90640To[165]+mlx90640To[180]+mlx90640To[176]+mlx90640To[192]) / 4.0;  // Temp in Center - based on 4 pixels
+    CenterTemp = (mlx90640To[367]+mlx90640To[368]+mlx90640To[399]+mlx90640To[400]) / 4.0;  // Temp in Center - based on 4 pixels
 
     MaxTemp = mlx90640To[0];            // Get first data to find Max and Min Temperature
     MinTemp = mlx90640To[0];
