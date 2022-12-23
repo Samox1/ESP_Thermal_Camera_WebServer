@@ -52,7 +52,7 @@ int MLX90640_I2CRead(uint8_t _deviceAddress, unsigned int startAddress, unsigned
     uint16_t numberOfBytesToRead = bytesRemaining;
     if (numberOfBytesToRead > I2C_BUFFER_LENGTH) numberOfBytesToRead = I2C_BUFFER_LENGTH;
 
-    Wire.requestFrom((uint8_t)_deviceAddress, numberOfBytesToRead);
+    Wire.requestFrom((int)_deviceAddress, (int)numberOfBytesToRead);
     if (Wire.available())
     {
       for (uint16_t x = 0 ; x < numberOfBytesToRead / 2; x++)

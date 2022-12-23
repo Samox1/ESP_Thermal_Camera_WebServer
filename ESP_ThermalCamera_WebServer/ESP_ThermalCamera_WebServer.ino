@@ -425,10 +425,14 @@ void setup()
   Wire.setClock(400000); //Increase I2C clock speed to 400kHz
   Serial.begin(115200);while (!Serial); //Wait for user to open terminal
 
+
+  Serial.println("2022 version");
+  
+
   if(!SPIFFS.begin(true)){
       Serial.println("An Error has occurred while mounting SPIFFS");
       return;
-}
+  }
   //ESP32 As access point
   WiFi.mode(WIFI_AP); //Access Point mode
   WiFi.softAP(ssid, password);
@@ -476,7 +480,7 @@ void setup()
 
   display.fillScreen(BLACK);
   display.setCursor(0,0);
-  display.print("Welcome!\nThis is example of Thermal Image Camera based on MLX90640 sensor.\n by SamoX");
+  display.print("Welcome v2!\nThis is example of Thermal Image Camera based on MLX90640 sensor.\n by SamoX");
   delay(2000);
   display.fillScreen(BLACK);
   lcdTestThermalImage();
