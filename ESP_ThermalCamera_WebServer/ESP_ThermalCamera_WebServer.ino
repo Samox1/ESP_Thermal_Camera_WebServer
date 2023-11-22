@@ -12,7 +12,7 @@
 #include <Wire.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
-#include "ESPAsyncWebServer.h"
+#include "ESPAsyncWebSrv.h"
 #include "SPIFFS.h"
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1331.h>
@@ -486,33 +486,33 @@ void setup()
 
 // --- Part WebServer ESP --- //
   
-  IPAddress ServerIP = WiFi.softAPIP(); // Obtain the IP of the Serve
-  Serial.print("IP address: ");
-  Serial.println(ServerIP);   //IP address assigned to your ESP
-  display.setCursor(0,49);
-  display.print(ServerIP);    // IP address on Display
+  //IPAddress ServerIP = WiFi.softAPIP(); // Obtain the IP of the Serve
+  //Serial.print("IP address: ");
+  //Serial.println(ServerIP);   //IP address assigned to your ESP
+  //display.setCursor(0,49);
+  //display.print(ServerIP);    // IP address on Display
 //----------------------------------------------------------------
 
   // Route for root / web page
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/html", index_html, processor);
-    //request->send_P(200, "text/html", index_html);
-  });
-  server.on("/temperature", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/plain", getCenterTemp().c_str());
-  });
-  server.on("/tempmax", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/plain", getMaxTemp().c_str());
-  });
-  server.on("/tempmin", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/plain", getMinTemp().c_str());
-  });
-  server.on("/thermal", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/thermal.bmp", "image/bmp", false);
-  });
- 
-  server.begin();                  //Start server
-  Serial.println("HTTP server started");
+  //server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+  //  request->send_P(200, "text/html", index_html, processor);
+  //  //request->send_P(200, "text/html", index_html);
+  //});
+  //server.on("/temperature", HTTP_GET, [](AsyncWebServerRequest *request){
+  //  request->send_P(200, "text/plain", getCenterTemp().c_str());
+  //});
+  //server.on("/tempmax", HTTP_GET, [](AsyncWebServerRequest *request){
+  //  request->send_P(200, "text/plain", getMaxTemp().c_str());
+  //});
+  //server.on("/tempmin", HTTP_GET, [](AsyncWebServerRequest *request){
+  //  request->send_P(200, "text/plain", getMinTemp().c_str());
+  //});
+  //server.on("/thermal", HTTP_GET, [](AsyncWebServerRequest *request){
+  //  request->send(SPIFFS, "/thermal.bmp", "image/bmp", false);
+  //});
+
+  //server.begin();                  //Start server
+  //Serial.println("HTTP server started");
 }
 
 
@@ -592,7 +592,7 @@ void loop()
     }       */
 // --- END of Calculate Chess Mode --- //
 
-    CenterTemp = (mlx90640To[165]+mlx90640To[180]+mlx90640To[176]+mlx90640To[192]) / 4.0;  // Temp in Center - based on 4 pixels
+    CenterTemp = (mlx90640To[367]+mlx90640To[368]+mlx90640To[399]+mlx90640To[400]) / 4.0;  // Temp in Center - based on 4 pixels
 
     MaxTemp = mlx90640To[0];            // Get first data to find Max and Min Temperature
     MinTemp = mlx90640To[0];
@@ -608,7 +608,7 @@ void loop()
     }
 
 
-    ThermalImageToWeb(mlx90640To, MinTemp, MaxTemp);
+    //ThermalImageToWeb(mlx90640To, MinTemp, MaxTemp);
     //display.fillRect(0, 0, 96, 48, BLACK);    // Black important sector - image and text on right side
     
     lcdThermalImage(mlx90640To, MinTemp, MaxTemp);    // Function to draw Thermal Image on OLED 
